@@ -149,13 +149,13 @@ app.use((err: any, req: any, res: any, next: any) => {
 });
 
 // For local development and our container
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  setupServer().then(() => {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://0.0.0.0:${PORT}`);
-    });
+setupServer().then(() => {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[Server] Successfully started on http://0.0.0.0:${PORT}`);
   });
-}
+}).catch(err => {
+  console.error("[Server Start Failure]", err);
+});
 
 // Export for Vercel
 export default app;
