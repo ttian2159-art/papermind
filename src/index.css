@@ -28,6 +28,18 @@
 .custom-markdown th { @apply bg-brand-bg border border-brand-border px-4 py-2 font-bold text-left; }
 .custom-markdown td { @apply border border-brand-border px-4 py-2; }
 
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-brand-border rounded-full hover:bg-brand-text-sub/30 transition-colors;
+  }
+}
+
 @layer base {
   body {
     @apply bg-brand-bg text-brand-text font-sans;

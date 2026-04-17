@@ -551,7 +551,7 @@ export default function App() {
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-brand-border p-8"
+              className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-brand-border p-8 max-h-[90vh] overflow-y-auto custom-scrollbar"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-8">
