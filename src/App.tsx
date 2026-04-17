@@ -554,52 +554,70 @@ export default function App() {
               className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-brand-border p-8 max-h-[90vh] overflow-y-auto custom-scrollbar"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-[18px] font-bold text-brand-text uppercase tracking-tight">
-                  {activeModal === 'history' ? '历史记录' : '系统设置'}
-                </h2>
-                <button onClick={() => setActiveModal(null)} className="text-brand-text-sub hover:text-brand-text transition-colors">
-                  <Plus className="rotate-45" size={24} />
-                </button>
-              </div>
-
-              {activeModal === 'history' ? (
-                <div className="space-y-6">
-                  <div className="flex gap-4 items-center p-4 bg-brand-bg rounded-xl border border-brand-border">
-                    <div className="w-10 h-10 bg-brand-highlight rounded-lg flex items-center justify-center">
-                      <History className="text-brand-accent" size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-semibold">会话描述</p>
-                      <p className="text-[11px] text-brand-text-sub">最后同步: {new Date().toLocaleTimeString()}</p>
-                    </div>
-                  </div>
-                  <div className="text-center py-20 opacity-30 select-none">
-                    <p className="text-xs uppercase font-mono tracking-widest">历史日志已存储在本地</p>
-                  </div>
+              <div className="flex flex-col h-full max-h-[85vh]">
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                  <h2 className="text-[18px] font-bold text-brand-text uppercase tracking-tight">
+                    {activeModal === 'history' ? '历史记录' : '系统设置'}
+                  </h2>
+                  <button onClick={() => setActiveModal(null)} className="text-brand-text-sub hover:text-brand-text transition-colors">
+                    <Plus className="rotate-45" size={24} />
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                   <div className="space-y-4">
-                      <div>
-                        <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider mb-2 block">AI 模型偏好</label>
-                        <select className="w-full bg-brand-bg border border-brand-border rounded-lg p-2 text-sm">
-                          <option>Gemini 3 Flash (默认)</option>
-                          <option>Gemini 3.1 Pro (高级)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider mb-2 block">系统智能等级</label>
-                        <div className="h-2 bg-brand-bg rounded-full overflow-hidden border border-brand-border">
-                           <div className="h-full bg-brand-accent w-[80%]" />
+
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
+                  {activeModal === 'history' ? (
+                    <div className="space-y-6">
+                      <div className="flex gap-4 items-center p-4 bg-brand-bg rounded-xl border border-brand-border">
+                        <div className="w-10 h-10 bg-brand-highlight rounded-lg flex items-center justify-center">
+                          <History className="text-brand-accent" size={20} />
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-semibold">会话描述</p>
+                          <p className="text-[11px] text-brand-text-sub">最后同步: {new Date().toLocaleTimeString()}</p>
                         </div>
                       </div>
-                   </div>
-                   <button className="w-full py-3 bg-brand-accent text-white rounded-xl text-[13px] font-bold hover:opacity-90 transition-opacity">
-                      应用配置更新
-                   </button>
+                      <div className="text-center py-20 opacity-30 select-none">
+                        <p className="text-xs uppercase font-mono tracking-widest">历史日志已存储在本地</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 pb-6">
+                      <div className="space-y-4">
+                          <div>
+                            <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider mb-2 block">AI 模型偏好</label>
+                            <select className="w-full bg-brand-bg border border-brand-border rounded-lg p-2 text-sm outline-none focus:border-brand-accent transition-colors">
+                              <option>Gemini 3 Flash (默认)</option>
+                              <option>Gemini 3.1 Pro (高级)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider mb-2 block">系统智能等级</label>
+                            <div className="h-2 bg-brand-bg rounded-full overflow-hidden border border-brand-border">
+                               <div className="h-full bg-brand-accent w-[80%]" />
+                            </div>
+                          </div>
+                          <div className="pt-4 space-y-3">
+                            <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider block">知识处理偏好</label>
+                            <div className="space-y-2">
+                              {['多模态关联优先', '深度逻辑追溯', '跨领域知识整合'].map(pref => (
+                                <label key={pref} className="flex items-center gap-3 p-3 rounded-lg border border-brand-border hover:bg-brand-highlight cursor-pointer transition-colors group">
+                                  <input type="checkbox" className="accent-brand-accent" defaultChecked />
+                                  <span className="text-[13px] text-brand-text group-hover:text-brand-accent transition-colors">{pref}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                      </div>
+                      <button 
+                        onClick={() => setActiveModal(null)}
+                        className="w-full py-3 bg-brand-accent text-white rounded-xl text-[13px] font-bold hover:opacity-90 transition-opacity active:scale-[0.98] transition-transform"
+                      >
+                        应用配置更新
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </motion.div>
           </motion.div>
         )}
