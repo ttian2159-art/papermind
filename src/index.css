@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Libre Baskerville", "Georgia", serif;
+  
+  --color-brand-bg: #fdfdfc;
+  --color-brand-sidebar: #ffffff;
+  --color-brand-border: #eeedea;
+  --color-brand-accent: #37352f;
+  --color-brand-text: #1a1a1a;
+  --color-brand-text-sub: #7b7975;
+  --color-brand-highlight: #f7f6f3;
+  --color-brand-tag-bg: #f5f5f0;
+}
+
+/* Custom Markdown Styles */
+.custom-markdown h1 { @apply text-2xl font-bold mb-6 text-brand-text border-b pb-2 border-brand-border; }
+.custom-markdown h2 { @apply text-xl font-bold mt-8 mb-4 text-brand-text; }
+.custom-markdown h3 { @apply text-lg font-bold mt-6 mb-2 text-brand-text; }
+.custom-markdown p { @apply mb-4 leading-relaxed; }
+.custom-markdown ul { @apply list-disc pl-6 mb-4 space-y-2; }
+.custom-markdown li { @apply text-brand-text; }
+.custom-markdown strong { @apply font-bold text-brand-accent; }
+.custom-markdown hr { @apply my-8 border-brand-border; }
+.custom-markdown table { @apply w-full border-collapse mb-8 text-[13px]; }
+.custom-markdown th { @apply bg-brand-bg border border-brand-border px-4 py-2 font-bold text-left; }
+.custom-markdown td { @apply border border-brand-border px-4 py-2; }
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-brand-text font-sans;
+  }
+}
