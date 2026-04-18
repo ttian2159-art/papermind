@@ -10,6 +10,62 @@ import { cn } from './lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// Access globally loaded libraries from index.html CDN
+declare global {
+  interface Window {
+    pdfjsLib: any;
+    mammoth: any;
+  }
+}
+
+async function extractTextFromFile(file: File): Promise<string> {
+  const mimeType = file.type;
+  
+  if (mimeType === 'application/pdf') {
+    const pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) throw new Error("PDF.js library failed to load from CDN. Please check your internet connection.");
+    
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Set worker source to CDN matching the library version
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+    }
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      // Use standard CMaps from CDN
+      cMapUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/`,
+    });
+    
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+    
+    const pageCount = Math.min(pdf.numPages, 100);
+    
+    for (let i = 1; i <= pageCount; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const strings = content.items.map((item: any) => 'str' in item ? item.str : '');
+      fullText += strings.join(' ') + '\n';
+    }
+    return fullText;
+  } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    const mammoth = window.mammoth;
+    if (!mammoth) throw new Error("Mammoth library failed to load from CDN.");
+    
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value;
+  } else if (mimeType === 'text/plain') {
+    return await file.text();
+  }
+  
+  throw new Error(`Unsupported file type: ${mimeType}`);
+}
+
 export default function App() {
   const [documents, setDocuments] = useState<DocumentRef[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -39,48 +95,23 @@ export default function App() {
     setIsUploading(true);
     try {
       for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await fetch('/api/parse', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const contentType = response.headers.get("content-type");
-          let errorMessage = "";
-          if (contentType && contentType.includes("application/json")) {
-            const errorJson = await response.json().catch(() => null);
-            errorMessage = errorJson?.details || errorJson?.error || "Unknown JSON error";
-          } else {
-            const text = await response.text();
-            errorMessage = `Non-JSON response: ${text.slice(0, 200)}...`;
-          }
-          console.error(`Upload failed for ${file.name}:`, errorMessage);
-          alert(`文件解析失败 (${file.name}): ${errorMessage}`);
+        console.log(`[Client] Processing: ${file.name}`);
+        
+        let text = "";
+        try {
+          text = await extractTextFromFile(file);
+        } catch (err) {
+          console.error(`[Client] Parsing failed for ${file.name}:`, err);
+          alert(`文件解析失败 (${file.name}): ${err instanceof Error ? err.message : String(err)}`);
           continue;
         }
 
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-           const text = await response.text();
-           console.error(`Expected JSON but got ${contentType}:`, text.slice(0, 200));
-           alert(`服务器响应格式错误: 预期 JSON，实际收到 ${contentType}`);
-           continue;
-        }
-
-        const data = await response.json().catch(err => {
-          console.error("Failed to parse JSON response:", err);
-          return null;
-        });
-
-        if (!data || !data.text) {
-          console.warn(`No content extracted from ${file.name}`);
+        if (!text || text.trim().length === 0) {
+          console.warn(`[Client] No content extracted from ${file.name}`);
           continue;
         }
 
-        const { text, filename } = data;
+        const filename = file.name;
 
         // Chunking
         const chunkSize = 1000;
