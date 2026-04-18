@@ -29,7 +29,7 @@ const handleApiError = (error: any) => {
   
   // Specific check for 403 access denied
   if (errorMessage.includes("403") || errorMessage.includes("PERMISSION_DENIED")) {
-    throw new Error("API 访问被拒绝 (403): 您的 Google Project 可能被禁用或 API Key 限制了访问。请检查 Google Cloud Console 中的 API 启用状态、结算信息以及 API Key 的来源限制。如果是从 AI Studio Build 复制的 Key，可能无法在外部站点使用。");
+    throw new Error("API 访问被拒绝 (403): 您的 Google 项目可能被封禁。解决方法：1. 请去 aistudio.google.com 点击 'Create API key in NEW project' 换个全新的项目创建 Key。 2. 确保您的 IP 不在受限地区（中国/香港等）。 3. 确保在 Google Cloud Console 中启用了 Generative Language API。");
   }
   
   throw error;
@@ -52,7 +52,7 @@ export async function embedText(text: string): Promise<number[]> {
 export async function generateAnswer(question: string, context: string) {
   try {
     const ai = getAI();
-    const model = "gemini-flash-latest";
+    const model = "gemini-3-flash-preview";
     const response = await ai.models.generateContent({
       model,
 // ... rest of the content remains the same via following edit logic ...
@@ -79,7 +79,7 @@ export async function generateAnswer(question: string, context: string) {
 export async function analyzeDocument(text: string, template: 'research' | 'business' | 'general' = 'research') {
   try {
     const ai = getAI();
-    const model = "gemini-flash-latest";
+    const model = "gemini-3-flash-preview";
     const response = await ai.models.generateContent({
       model,
       contents: `Analyze this academic paper. 
@@ -167,7 +167,7 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 export async function generateLibrarySummary(docs: {name: string, text: string}[], length: 'short' | 'medium' | 'long' = 'medium') {
   try {
     const ai = getAI();
-    const model = "gemini-flash-latest";
+    const model = "gemini-3-flash-preview";
     const lengthMap = {
     short: "约 500 字左右，精炼提取最核心观点",
     medium: "约 1500 字左右，详细综述研究现状",
