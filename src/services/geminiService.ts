@@ -1,17 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Chunk } from "../types";
 
-const getApiKey = () => {
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (aiInstance) return aiInstance;
+  
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === "undefined") {
     throw new Error("检测到 API Key 缺失。请在部署环境（如 Netlify）的 Environment Variables 中配置 GEMINI_API_KEY，并重新部署项目。");
   }
-  return key;
+  
+  aiInstance = new GoogleGenAI({ apiKey: key });
+  return aiInstance;
 };
 
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
-
 export async function embedText(text: string): Promise<number[]> {
+  const ai = getAI();
   const model = "gemini-embedding-2-preview";
   const result = await ai.models.embedContent({
     model,
@@ -21,9 +26,11 @@ export async function embedText(text: string): Promise<number[]> {
 }
 
 export async function generateAnswer(question: string, context: string) {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   const response = await ai.models.generateContent({
     model,
+// ... rest of the content remains the same via following edit logic ...
     contents: `You are DocMind, an expert academic document assistant. Use the following context to answer the user's question accurately. 
     
     ### 要求 (Requirements):
@@ -42,6 +49,7 @@ export async function generateAnswer(question: string, context: string) {
 }
 
 export async function analyzeDocument(text: string, template: 'research' | 'business' | 'general' = 'research') {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   const response = await ai.models.generateContent({
     model,
@@ -122,6 +130,7 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 }
 
 export async function generateLibrarySummary(docs: {name: string, text: string}[], length: 'short' | 'medium' | 'long' = 'medium') {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   const lengthMap = {
     short: "约 500 字左右，精炼提取最核心观点",
