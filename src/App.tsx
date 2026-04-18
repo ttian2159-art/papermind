@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, MessageSquare, History, Settings, FileText, ChevronRight, Search, Sparkles, Zap, LayoutDashboard, BookOpen, Hash } from 'lucide-react';
+import { Plus, MessageSquare, History, Settings, FileText, ChevronRight, Search, Sparkles, Zap, LayoutDashboard, BookOpen, Hash, Loader2 } from 'lucide-react';
 import { Dropzone } from './components/Dropzone';
 import { Chat } from './components/Chat';
 import { AnalysisPanel } from './components/AnalysisPanel';
@@ -57,7 +57,7 @@ async function extractTextFromFile(file: File): Promise<string> {
     if (!mammoth) throw new Error("Mammoth library failed to load from CDN.");
     
     const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer });
+    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
     return result.value;
   } else if (mimeType === 'text/plain') {
     return await file.text();
@@ -72,6 +72,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'analysis'>('chat');
   const [currentTask, setCurrentTask] = useState<'home' | 'doc' | 'search' | 'reports' | 'entities' | 'chat'>('home');
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -91,47 +92,72 @@ export default function App() {
     }
   };
 
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  };
+
   const handleFilesUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
     setIsUploading(true);
+    setUploadError(null);
+    console.log("[Client] Starting upload process for", files.length, "files");
+    
     try {
       for (const file of files) {
-        console.log(`[Client] Processing: ${file.name}`);
+        console.log(`[Client] Processing: ${file.name} (${file.type})`);
         
         let text = "";
         try {
           text = await extractTextFromFile(file);
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.error(`[Client] Parsing failed for ${file.name}:`, err);
-          alert(`文件解析失败 (${file.name}): ${err instanceof Error ? err.message : String(err)}`);
+          setUploadError(`文件解析失败 (${file.name}): ${errMsg}`);
           continue;
         }
 
         if (!text || text.trim().length === 0) {
           console.warn(`[Client] No content extracted from ${file.name}`);
+          setUploadError(`文件内容为空或解析失败 (${file.name})`);
           continue;
         }
 
+        console.log(`[Client] Successfully extracted ${text.length} chars from ${file.name}`);
         const filename = file.name;
 
         // Chunking
         const chunkSize = 1000;
         const overlap = 200;
         const chunks: Chunk[] = [];
-        const docId = crypto.randomUUID();
+        const docId = generateId();
 
         for (let i = 0; i < text.length; i += chunkSize - overlap) {
           const chunkText = text.slice(i, i + chunkSize);
-          chunks.push({ id: crypto.randomUUID(), text: chunkText, docId });
+          chunks.push({ id: generateId(), text: chunkText, docId });
           if (i + chunkSize >= text.length) break;
         }
 
-        const chunksWithEmbeddings = await Promise.all(
-          chunks.map(async (c) => ({
-            ...c,
-            embedding: await embedText(c.text),
-          }))
-        );
+        console.log(`[Client] Generated ${chunks.length} chunks. Starting embedding...`);
 
+        // Batch embedding to avoid quota/concurrency issues
+        const chunksWithEmbeddings: any[] = [];
+        const batchSize = 3;
+        for (let i = 0; i < chunks.length; i += batchSize) {
+          const batch = chunks.slice(i, i + batchSize);
+          const embeddedBatch = await Promise.all(
+            batch.map(async (c) => ({
+              ...c,
+              embedding: await embedText(c.text),
+            }))
+          );
+          chunksWithEmbeddings.push(...embeddedBatch);
+        }
+
+        console.log(`[Client] Embedding complete. Starting AI analysis...`);
         const analysis = await analyzeDocument(text);
 
         const newDoc: DocumentRef = {
@@ -144,9 +170,11 @@ export default function App() {
         setDocuments(prev => [newDoc, ...prev]);
         setSelectedDocId(docId);
         setCurrentTask('doc');
+        console.log(`[Client] Successfully added document: ${filename}`);
       }
     } catch (error) {
       console.error('Processing error:', error);
+      setUploadError(`系统处理错误: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsUploading(false);
     }
@@ -365,7 +393,31 @@ export default function App() {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Central Workspace */}
-          <section className="flex-1 bg-brand-bg overflow-hidden relative">
+          <div className="flex-1 overflow-y-auto bg-brand-bg relative">
+            {uploadError && (
+              <div className="mx-12 mt-8 mb-4 bg-rose-50 border border-rose-100 rounded-xl p-4 flex items-start gap-3 text-rose-700 animate-in fade-in slide-in-from-top-2 z-50">
+                <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-[10px] font-bold">!</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[13px] font-medium">{uploadError}</p>
+                  <button 
+                    onClick={() => setUploadError(null)}
+                    className="text-[11px] font-bold uppercase tracking-widest mt-2 hover:underline opacity-60"
+                  >
+                    关闭提示
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isUploading && (
+              <div className="mx-12 mt-8 mb-4 bg-brand-highlight border border-brand-accent/20 rounded-xl p-4 flex items-center gap-3 text-brand-accent animate-pulse z-50">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <p className="text-[13px] font-medium">正在深度解析解析文档并构建智能索引 (约需 10-20 秒)...</p>
+              </div>
+            )}
+            
             {currentTask === 'home' && (
               <div className="h-full overflow-y-auto p-12 space-y-12">
                 <header className="space-y-4">
@@ -564,7 +616,7 @@ export default function App() {
                 )}
               </div>
             )}
-          </section>
+          </div>
         </div>
       </main>
 
