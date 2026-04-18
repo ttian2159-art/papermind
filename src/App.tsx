@@ -78,8 +78,15 @@ export default function App() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [globalSearchResults, setGlobalSearchResults] = useState<{docName: string, text: string, score: number}[]>([]);
   const [activeModal, setActiveModal] = useState<'history' | 'settings' | null>(null);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('DOCMIND_API_KEY') || '');
   const [libraryReport, setLibraryReport] = useState<string | null>(null);
   const [reportLength, setReportLength] = useState<'short' | 'medium' | 'long'>('medium');
+
+  const handleSaveSettings = () => {
+    localStorage.setItem('DOCMIND_API_KEY', apiKey);
+    setActiveModal(null);
+    window.location.reload(); // Reload to re-initialize AI instance with new key
+  };
 
   const selectedDoc = documents.find(d => d.id === selectedDocId) || null;
 
@@ -666,36 +673,45 @@ export default function App() {
                   ) : (
                     <div className="space-y-6 pb-6">
                       <div className="space-y-4">
+                          <div className="p-4 bg-brand-highlight/30 rounded-xl border border-brand-accent/20">
+                            <h3 className="text-[13px] font-bold text-brand-accent mb-2 flex items-center gap-2">
+                              <Sparkles size={16} />
+                              连接您的 Gemini API
+                            </h3>
+                            <p className="text-[11px] text-brand-text-sub leading-relaxed mb-4">
+                              输入您的 API Key 以激活 AI 助手。您的 Key 将**仅保存在本地**，不会发送到我们的服务器。
+                            </p>
+                            <input 
+                              type="password"
+                              placeholder="粘贴 AIza... 开头的 Key"
+                              value={apiKey}
+                              onChange={(e) => setApiKey(e.target.value)}
+                              className="w-full bg-white border border-brand-border rounded-lg p-2.5 text-xs outline-none focus:border-brand-accent transition-colors font-mono"
+                            />
+                            <div className="mt-4 flex gap-2">
+                               <a 
+                                 href="https://aistudio.google.com/app/apikey" 
+                                 target="_blank" 
+                                 rel="noopener noreferrer"
+                                 className="text-[10px] text-brand-accent hover:underline font-bold"
+                               >
+                                 + 获取免费 API Key
+                               </a>
+                            </div>
+                          </div>
+
                           <div>
                             <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider mb-2 block">AI 模型偏好</label>
                             <select className="w-full bg-brand-bg border border-brand-border rounded-lg p-2 text-sm outline-none focus:border-brand-accent transition-colors">
                               <option>Gemini 3 Flash (默认)</option>
-                              <option>Gemini 3.1 Pro (高级)</option>
                             </select>
-                          </div>
-                          <div>
-                            <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider mb-2 block">系统智能等级</label>
-                            <div className="h-2 bg-brand-bg rounded-full overflow-hidden border border-brand-border">
-                               <div className="h-full bg-brand-accent w-[80%]" />
-                            </div>
-                          </div>
-                          <div className="pt-4 space-y-3">
-                            <label className="text-[11px] font-bold text-brand-text-sub uppercase tracking-wider block">知识处理偏好</label>
-                            <div className="space-y-2">
-                              {['多模态关联优先', '深度逻辑追溯', '跨领域知识整合'].map(pref => (
-                                <label key={pref} className="flex items-center gap-3 p-3 rounded-lg border border-brand-border hover:bg-brand-highlight cursor-pointer transition-colors group">
-                                  <input type="checkbox" className="accent-brand-accent" defaultChecked />
-                                  <span className="text-[13px] text-brand-text group-hover:text-brand-accent transition-colors">{pref}</span>
-                                </label>
-                              ))}
-                            </div>
                           </div>
                       </div>
                       <button 
-                        onClick={() => setActiveModal(null)}
+                        onClick={handleSaveSettings}
                         className="w-full py-3 bg-brand-accent text-white rounded-xl text-[13px] font-bold hover:opacity-90 transition-opacity active:scale-[0.98] transition-transform"
                       >
-                        应用配置更新
+                        应用并连接 AI
                       </button>
                     </div>
                   )}
