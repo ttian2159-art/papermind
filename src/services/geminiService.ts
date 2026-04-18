@@ -6,30 +6,55 @@ let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
   if (aiInstance) return aiInstance;
   
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || key === "undefined") {
-    throw new Error("检测到 API Key 缺失。请在部署环境（如 Netlify）的 Environment Variables 中配置 GEMINI_API_KEY，并重新部署项目。");
+  // Try both the defined process.env and the Vite-native import.meta.env
+  const key = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  
+  if (!key || key === "undefined" || key === "null") {
+    console.error("[AI Service] API Key missing in environment.");
+    throw new Error("检测到 API Key 缺失。请在 Netlify 的 'Environment variables' 中配置 GEMINI_API_KEY，并确保在配置后执行了 'Clear cache and deploy site' 重新部署。");
   }
   
-  aiInstance = new GoogleGenAI({ apiKey: key });
+  // Safe logging for debugging (only shows first 4 chars)
+  console.log(`[AI Service] Initializing with key: ${key.substring(0, 4)}...`);
+  
+  aiInstance = new GoogleGenAI({ 
+    apiKey: key,
+  });
   return aiInstance;
 };
 
+const handleApiError = (error: any) => {
+  console.error("[AI Service Error]", error);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Specific check for 403 access denied
+  if (errorMessage.includes("403") || errorMessage.includes("PERMISSION_DENIED")) {
+    throw new Error("API 访问被拒绝 (403): 您的 Google Project 可能被禁用或 API Key 限制了访问。请检查 Google Cloud Console 中的 API 启用状态、结算信息以及 API Key 的来源限制。如果是从 AI Studio Build 复制的 Key，可能无法在外部站点使用。");
+  }
+  
+  throw error;
+};
+
 export async function embedText(text: string): Promise<number[]> {
-  const ai = getAI();
-  const model = "gemini-embedding-2-preview";
-  const result = await ai.models.embedContent({
-    model,
-    contents: [{ parts: [{ text }] }],
-  });
-  return result.embeddings[0].values;
+  try {
+    const ai = getAI();
+    const model = "gemini-embedding-2-preview";
+    const result = await ai.models.embedContent({
+      model,
+      contents: [{ parts: [{ text }] }],
+    });
+    return result.embeddings[0].values;
+  } catch (err) {
+    return handleApiError(err);
+  }
 }
 
 export async function generateAnswer(question: string, context: string) {
-  const ai = getAI();
-  const model = "gemini-3-flash-preview";
-  const response = await ai.models.generateContent({
-    model,
+  try {
+    const ai = getAI();
+    const model = "gemini-flash-latest";
+    const response = await ai.models.generateContent({
+      model,
 // ... rest of the content remains the same via following edit logic ...
     contents: `You are DocMind, an expert academic document assistant. Use the following context to answer the user's question accurately. 
     
@@ -44,74 +69,84 @@ export async function generateAnswer(question: string, context: string) {
     ${context}
 
     Question: ${question}`,
-  });
-  return response.text;
+    });
+    return response.text;
+  } catch (err) {
+    return handleApiError(err);
+  }
 }
 
 export async function analyzeDocument(text: string, template: 'research' | 'business' | 'general' = 'research') {
-  const ai = getAI();
-  const model = "gemini-3-flash-preview";
-  const response = await ai.models.generateContent({
-    model,
-    contents: `Analyze this academic paper. 
-    1. Extract Research Problem (研究问题), Methodology (方法), Data Sources (数据来源), Conclusions (结论), and Limitations (局限性).
-    2. Extract themes and entities.
-    3. Provide a summary and key takeaways.
-    
-    RESPOND IN CHINESE.
-    
-    Document Text:
-    ${text.slice(0, 30000)}`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          summary: { type: Type.STRING },
-          takeaways: { type: Type.ARRAY, items: { type: Type.STRING } },
-          entities: { type: Type.ARRAY, items: { type: Type.STRING } },
-          themes: { type: Type.ARRAY, items: { type: Type.STRING } },
-          keywords: {
-            type: Type.ARRAY,
-            items: {
+  try {
+    const ai = getAI();
+    const model = "gemini-flash-latest";
+    const response = await ai.models.generateContent({
+      model,
+      contents: `Analyze this academic paper. 
+      1. Extract Research Problem (研究问题), Methodology (方法), Data Sources (数据来源), Conclusions (结论), and Limitations (局限性).
+      2. Extract themes and entities.
+      3. Provide a summary and key takeaways.
+      
+      RESPOND IN CHINESE.
+      
+      Document Text:
+      ${text.slice(0, 30000)}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            summary: { type: Type.STRING },
+            takeaways: { type: Type.ARRAY, items: { type: Type.STRING } },
+            entities: { type: Type.ARRAY, items: { type: Type.STRING } },
+            themes: { type: Type.ARRAY, items: { type: Type.STRING } },
+            keywords: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  text: { type: Type.STRING },
+                  value: { type: Type.NUMBER }
+                },
+                required: ["text", "value"]
+              }
+            },
+            researchData: {
               type: Type.OBJECT,
               properties: {
-                text: { type: Type.STRING },
-                value: { type: Type.NUMBER }
+                problem: { type: Type.STRING, description: "研究问题" },
+                methodology: { type: Type.STRING, description: "研究方法" },
+                dataSources: { type: Type.STRING, description: "数据来源" },
+                conclusions: { type: Type.STRING, description: "主要结论" },
+                limitations: { type: Type.STRING, description: "局限性与不足" }
               },
-              required: ["text", "value"]
-            }
-          },
-          researchData: {
-            type: Type.OBJECT,
-            properties: {
-              problem: { type: Type.STRING, description: "研究问题" },
-              methodology: { type: Type.STRING, description: "研究方法" },
-              dataSources: { type: Type.STRING, description: "数据来源" },
-              conclusions: { type: Type.STRING, description: "主要结论" },
-              limitations: { type: Type.STRING, description: "局限性与不足" }
+              required: ["problem", "methodology", "dataSources", "conclusions", "limitations"]
             },
-            required: ["problem", "methodology", "dataSources", "conclusions", "limitations"]
-          },
-          tableData: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              additionalProperties: { type: Type.STRING }
+            tableData: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                additionalProperties: { type: Type.STRING }
+              }
             }
-          }
-        },
-        required: ["summary", "takeaways", "entities", "themes", "keywords", "researchData"]
+          },
+          required: ["summary", "takeaways", "entities", "themes", "keywords", "researchData"]
+        }
       }
+    });
+
+    try {
+      const data = JSON.parse(response.text || "{}");
+      return { ...data, template };
+    } catch (e) {
+      if (e instanceof Error && (e.message.includes("403") || e.message.includes("PERMISSION_DENIED"))) {
+         throw e;
+      }
+      console.error("Failed to parse analysis:", e);
+      return null;
     }
-  });
-  
-  try {
-    const data = JSON.parse(response.text || "{}");
-    return { ...data, template };
-  } catch (e) {
-    console.error("Failed to parse analysis:", e);
-    return null;
+  } catch (err) {
+    return handleApiError(err);
   }
 }
 
@@ -130,9 +165,10 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 }
 
 export async function generateLibrarySummary(docs: {name: string, text: string}[], length: 'short' | 'medium' | 'long' = 'medium') {
-  const ai = getAI();
-  const model = "gemini-3-flash-preview";
-  const lengthMap = {
+  try {
+    const ai = getAI();
+    const model = "gemini-flash-latest";
+    const lengthMap = {
     short: "约 500 字左右，精炼提取最核心观点",
     medium: "约 1500 字左右，详细综述研究现状",
     long: "约 3000 字以上，深度分析、方法对比及未来展望"
@@ -180,6 +216,9 @@ export async function generateLibrarySummary(docs: {name: string, text: string}[
 
     Documents:
     ${context}`,
-  });
-  return response.text;
+    });
+    return response.text;
+  } catch (err) {
+    return handleApiError(err);
+  }
 }
