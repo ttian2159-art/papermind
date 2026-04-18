@@ -1,7 +1,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Chunk } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const getApiKey = () => {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key || key === "undefined") {
+    throw new Error("检测到 API Key 缺失。请在部署环境（如 Netlify）的 Environment Variables 中配置 GEMINI_API_KEY，并重新部署项目。");
+  }
+  return key;
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export async function embedText(text: string): Promise<number[]> {
   const model = "gemini-embedding-2-preview";
